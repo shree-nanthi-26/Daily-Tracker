@@ -15,6 +15,14 @@ class FirestoreService {
   final Uuid _uuid = const Uuid();
   final LocalStorageService _storage = LocalStorageService();
 
+  /// Whether Cloud Firestore is actively initialized and reachable
+  bool get isCloudActive => _db != null;
+
+  List<TaskModel> get currentTasks => List.unmodifiable(_mockTasks);
+  List<HabitModel> get currentHabits => List.unmodifiable(_mockHabits);
+  List<HabitCompletionModel> get currentCompletions => List.unmodifiable(_mockCompletions);
+  List<GoalModel> get currentGoals => List.unmodifiable(_mockGoals);
+
   // Fallback in-memory store if Firebase credentials aren't connected yet
   final List<TaskModel> _mockTasks = [
     TaskModel(
@@ -932,5 +940,140 @@ class FirestoreService {
     _mockHabitStream.add([]);
     _mockCompletionStream.add([]);
     _mockGoalStream.add([]);
+  }
+
+  /// Generates a structured snapshot payload of current local models for synchronization or inspection
+  Map<String, dynamic> prepareSyncPayload() {
+    return {
+      'tasks': _mockTasks.map((t) => t.toFirestore()).toList(),
+      'habits': _mockHabits.map((h) => h.toFirestore()).toList(),
+      'completions': _mockCompletions.map((c) => c.toFirestore()).toList(),
+      'goals': _mockGoals.map((g) => g.toFirestore()).toList(),
+      'summary': {
+        'tasksCount': _mockTasks.length,
+        'habitsCount': _mockHabits.length,
+        'completionsCount': _mockCompletions.length,
+        'goalsCount': _mockGoals.length,
+        'totalCount': _mockTasks.length + _mockHabits.length + _mockCompletions.length + _mockGoals.length,
+      }
+    };
+  }
+
+  /// Synchronize all local offline data to Cloud Firestore under users/{uid}/...
+  /// Uses batched writes to ensure high performance and atomicity.
+  Future<Map<String, int>> syncLocalToCloud(String uid) async {
+    if (_db == null) {
+      throw StateError('Cloud Firestore is not active. Firebase is running in offline/demo mode.');
+    }
+
+    final int tasksSynced = _mockTasks.length;
+    final int habitsSynced = _mockHabits.length;
+    final int completionsSynced = _mockCompletions.length;
+    final int goalsSynced = _mockGoals.length;
+
+    // Collect all write operations
+    final List<MapEntry<DocumentReference, Map<String, dynamic>>> operations = [];
+    final userDoc = _db.collection('users').doc(uid);
+
+    for (final task in _mockTasks) {
+      final docRef = userDoc.collection('tasks').doc(task.id);
+      operations.add(MapEntry(docRef, task.toFirestore()));
+    }
+
+    for (final habit in _mockHabits) {
+      final docRef = userDoc.collection('habits').doc(habit.id);
+      operations.add(MapEntry(docRef, habit.toFirestore()));
+    }
+
+    for (final completion in _mockCompletions) {
+      final docRef = userDoc.collection('habit_completions').doc(completion.id);
+      operations.add(MapEntry(docRef, completion.toFirestore()));
+    }
+
+    for (final goal in _mockGoals) {
+      final docRef = userDoc.collection('goals').doc(goal.id);
+      operations.add(MapEntry(docRef, goal.toFirestore()));
+    }
+
+    // Commit in chunks of up to 400 (Firestore maximum batch size is 500)
+    const int chunkSize = 400;
+    for (int i = 0; i < operations.length; i += chunkSize) {
+      final chunk = operations.sublist(
+        i,
+        (i + chunkSize > operations.length) ? operations.length : i + chunkSize,
+      );
+      final batch = _db.batch();
+      for (final op in chunk) {
+        batch.set(op.key, op.value, SetOptions(merge: true));
+      }
+      await batch.commit();
+    }
+
+    debugPrint('[FirestoreService] syncLocalToCloud complete for $uid: $tasksSynced tasks, $habitsSynced habits, $completionsSynced completions, $goalsSynced goals.');
+
+    return {
+      'tasks': tasksSynced,
+      'habits': habitsSynced,
+      'completions': completionsSynced,
+      'goals': goalsSynced,
+      'total': tasksSynced + habitsSynced + completionsSynced + goalsSynced,
+    };
+  }
+
+  /// Download and pull cloud data from Cloud Firestore into local offline storage.
+  Future<Map<String, int>> fetchCloudToLocal(String uid) async {
+    if (_db == null) {
+      throw StateError('Cloud Firestore is not active. Firebase is running in offline/demo mode.');
+    }
+
+    final userDoc = _db.collection('users').doc(uid);
+
+    final tasksSnap = await userDoc.collection('tasks').get();
+    final habitsSnap = await userDoc.collection('habits').get();
+    final completionsSnap = await userDoc.collection('habit_completions').get();
+    final goalsSnap = await userDoc.collection('goals').get();
+
+    final cloudTasks = tasksSnap.docs.map((d) => TaskModel.fromFirestore(d)).toList();
+    final cloudHabits = habitsSnap.docs.map((d) => HabitModel.fromFirestore(d)).toList();
+    final cloudCompletions = completionsSnap.docs.map((d) => HabitCompletionModel.fromFirestore(d)).toList();
+    final cloudGoals = goalsSnap.docs.map((d) => GoalModel.fromFirestore(d)).toList();
+
+    if (cloudTasks.isNotEmpty) {
+      _mockTasks.clear();
+      _mockTasks.addAll(cloudTasks);
+      await _storage.saveTasks(_mockTasks);
+      _mockTaskStream.add(List.from(_mockTasks));
+    }
+
+    if (cloudHabits.isNotEmpty) {
+      _mockHabits.clear();
+      _mockHabits.addAll(cloudHabits);
+      await _storage.saveHabits(_mockHabits);
+      _mockHabitStream.add(List.from(_mockHabits));
+    }
+
+    if (cloudCompletions.isNotEmpty) {
+      _mockCompletions.clear();
+      _mockCompletions.addAll(cloudCompletions);
+      await _storage.saveCompletions(_mockCompletions);
+      _mockCompletionStream.add(List.from(_mockCompletions));
+    }
+
+    if (cloudGoals.isNotEmpty) {
+      _mockGoals.clear();
+      _mockGoals.addAll(cloudGoals);
+      await _storage.saveGoals(_mockGoals);
+      _mockGoalStream.add(List.from(_mockGoals));
+    }
+
+    debugPrint('[FirestoreService] fetchCloudToLocal complete: ${cloudTasks.length} tasks, ${cloudHabits.length} habits, ${cloudCompletions.length} completions, ${cloudGoals.length} goals.');
+
+    return {
+      'tasks': cloudTasks.length,
+      'habits': cloudHabits.length,
+      'completions': cloudCompletions.length,
+      'goals': cloudGoals.length,
+      'total': cloudTasks.length + cloudHabits.length + cloudCompletions.length + cloudGoals.length,
+    };
   }
 }

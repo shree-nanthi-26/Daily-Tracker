@@ -5,6 +5,7 @@ import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/task_provider.dart';
+import 'widgets/cloud_connect_sheet.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -15,6 +16,117 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _isExporting = false;
+  bool _isSyncingCloud = false;
+  bool _isFetchingCloud = false;
+  DateTime? _lastSyncedAt;
+
+  Future<void> _handleSyncToCloud() async {
+    final firestore = ref.read(firestoreServiceProvider);
+    final authService = ref.read(authServiceProvider);
+    final uid = authService.currentUserId;
+
+    if (!firestore.isCloudActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Firebase Cloud Firestore is operating in offline demo mode. Setup Firestore in Firebase Console to activate cloud backups.'),
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isSyncingCloud = true);
+    try {
+      final res = await firestore.syncLocalToCloud(uid);
+      setState(() {
+        _lastSyncedAt = DateTime.now();
+        _isSyncingCloud = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.greenSuccess,
+            content: Row(
+              children: [
+                const Icon(Icons.cloud_done_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Cloud sync complete! ${res['total']} items updated in Firestore.'),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSyncingCloud = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.danger,
+            content: Text('Cloud sync notice: $e'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleFetchCloud() async {
+    final firestore = ref.read(firestoreServiceProvider);
+    final authService = ref.read(authServiceProvider);
+    final uid = authService.currentUserId;
+
+    if (!firestore.isCloudActive) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Firebase Cloud Firestore is operating in offline demo mode.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isFetchingCloud = true);
+    try {
+      final res = await firestore.fetchCloudToLocal(uid);
+      setState(() {
+        _lastSyncedAt = DateTime.now();
+        _isFetchingCloud = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.greenSuccess,
+            content: Row(
+              children: [
+                const Icon(Icons.cloud_download_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Data restored from Cloud! ${res['total']} items retrieved.'),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isFetchingCloud = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.danger,
+            content: Text('Fetch from cloud notice: $e'),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
 
   void _showEditNameDialog(BuildContext context, String currentName) {
     final controller = TextEditingController(text: currentName);
@@ -224,6 +336,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final stats = ref.watch(dataStatsProvider);
 
     final authService = ref.watch(authServiceProvider);
+    final firestoreService = ref.watch(firestoreServiceProvider);
     final currentUser = authService.currentUser;
     final isGuest = ref.watch(isGuestSignedInProvider);
     final userEmail = currentUser?.email ?? (isGuest ? 'guest_offline@dailywork.local' : 'shree@dailywork.app');
@@ -408,7 +521,133 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
               const SizedBox(height: 14),
 
-              // 2. APPEARANCE & THEME SECTION
+              // 2. CLOUD SYNC & CROSS-DEVICE HUB CARD
+              _buildCardContainer(
+                title: 'Cloud Sync & Cross-Device Hub',
+                icon: Icons.cloud_sync_rounded,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.navyPrimary.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.borderCard),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: firestoreService.isCloudActive
+                                      ? AppColors.greenSuccess.withValues(alpha: 0.12)
+                                      : AppColors.tealAccent.withValues(alpha: 0.12),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  firestoreService.isCloudActive
+                                      ? Icons.cloud_done_rounded
+                                      : Icons.cloud_off_rounded,
+                                  color: firestoreService.isCloudActive
+                                      ? AppColors.greenSuccess
+                                      : AppColors.tealAccent,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      firestoreService.isCloudActive
+                                          ? 'Cloud Firestore Connected'
+                                          : 'Offline Mode (Local Store)',
+                                      style: const TextStyle(
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _lastSyncedAt != null
+                                          ? 'Last Synced: ${_lastSyncedAt!.hour.toString().padLeft(2, '0')}:${_lastSyncedAt!.minute.toString().padLeft(2, '0')}'
+                                          : 'Target: daily-work-tracker-e5831',
+                                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isGuest || currentUser == null)
+                                OutlinedButton(
+                                  onPressed: () => CloudConnectSheet.show(context),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                  child: const Text('Connect Account', style: TextStyle(fontSize: 12)),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Sync action buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _isSyncingCloud ? null : _handleSyncToCloud,
+                            icon: _isSyncingCloud
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Icon(Icons.cloud_upload_rounded, size: 18),
+                            label: Text(_isSyncingCloud ? 'Syncing...' : 'Sync to Cloud Now'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: _isFetchingCloud ? null : _handleFetchCloud,
+                            icon: _isFetchingCloud
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.cloud_download_rounded, size: 18),
+                            label: Text(_isFetchingCloud ? 'Fetching...' : 'Fetch from Cloud'),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Cross-device sync pushes your local tasks, habits, completions, and goals to Firestore collections under users/{uid}/.',
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary, height: 1.3),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+              // 3. APPEARANCE & THEME SECTION
               _buildCardContainer(
                 title: 'Appearance & Interaction',
                 icon: Icons.palette_outlined,
