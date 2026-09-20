@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'services/firebase_service.dart';
+import 'services/notification_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/settings_provider.dart';
 import 'views/auth/login_screen.dart';
@@ -31,6 +32,7 @@ void main() async {
   );
 
   await FirebaseService.initialize();
+  await NotificationService().initialize();
 
   runApp(
     const ProviderScope(

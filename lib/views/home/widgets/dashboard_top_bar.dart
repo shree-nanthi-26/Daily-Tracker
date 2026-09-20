@@ -5,6 +5,8 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/task_provider.dart';
 
 import '../../../providers/settings_provider.dart';
+import '../../../providers/notification_provider.dart';
+import 'notification_center_sheet.dart';
 
 class DashboardTopBar extends ConsumerWidget {
   final VoidCallback? onOpenDrawer;
@@ -25,6 +27,7 @@ class DashboardTopBar extends ConsumerWidget {
     final authService = ref.watch(authServiceProvider);
     final user = authService.currentUser;
     final displayName = ref.watch(userDisplayNameProvider);
+    final pendingReminders = ref.watch(pendingRemindersCountProvider);
     final userEmail = user?.email ?? 'shree@dailywork.app';
     final initialLetter = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'S';
 
@@ -105,24 +108,33 @@ class DashboardTopBar extends ConsumerWidget {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Notification bell icon
+                  // Notification bell icon with pending reminder badge
                   IconButton(
-                    icon: const Icon(
-                      Icons.notifications_none_rounded,
-                      color: Colors.white70,
-                      size: 20,
+                    icon: Badge(
+                      isLabelVisible: pendingReminders > 0,
+                      backgroundColor: AppColors.tealAccent,
+                      textColor: AppColors.navyPrimary,
+                      label: Text(
+                        '$pendingReminders',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      child: Icon(
+                        pendingReminders > 0
+                            ? Icons.notifications_active_rounded
+                            : Icons.notifications_none_rounded,
+                        color: pendingReminders > 0 ? AppColors.tealAccent : Colors.white70,
+                        size: 20,
+                      ),
                     ),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('All tasks and habits are synchronized.'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                    tooltip: 'Notifications',
+                    onPressed: () => NotificationCenterSheet.show(context),
+                    tooltip: pendingReminders > 0
+                        ? '$pendingReminders Habit Reminder${pendingReminders == 1 ? '' : 's'} Pending'
+                        : 'Notification Center',
                   ),
 
                   SizedBox(width: itemSpacing),
