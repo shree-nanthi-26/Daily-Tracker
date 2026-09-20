@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../models/task_model.dart';
@@ -8,6 +9,7 @@ import '../dashboard/widgets/dashboard_section_card.dart';
 import 'widgets/task_card_item.dart';
 import 'widgets/task_editor_sheet.dart';
 import 'widgets/task_progress_pie_card.dart';
+import 'widgets/task_sort_sheet.dart';
 
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});
@@ -26,6 +28,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 
   void _openTaskEditor([TaskModel? task]) {
+    HapticFeedback.selectionClick();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -46,6 +49,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
   }
 
   void _confirmDelete(TaskModel task) {
+    HapticFeedback.selectionClick();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -67,6 +71,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
             onPressed: () {
+              HapticFeedback.selectionClick();
               final uid = ref.read(currentUserIdProvider);
               ref.read(firestoreServiceProvider).deleteTask(uid, task.id);
               Navigator.of(ctx).pop();
@@ -84,6 +89,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     final counts = ref.watch(taskCountsProvider);
     final filteredTasks = ref.watch(filteredTasksProvider);
     final categoryFilter = ref.watch(taskCategoryFilterProvider);
+    final priorityFilter = ref.watch(taskPriorityFilterProvider);
     final uid = ref.watch(currentUserIdProvider);
     final firestore = ref.watch(firestoreServiceProvider);
     final allTasks = ref.watch(tasksStreamProvider).value ?? [];
@@ -162,11 +168,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                           Expanded(
                             child: Column(
                               children: [
-                                _buildSearchField(),
+                                _buildSearchAndSortBar(),
                                 const SizedBox(height: 10),
                                 _buildTabBar(activeTab, counts),
                                 const SizedBox(height: 8),
                                 _buildCategoryPills(categories, categoryFilter),
+                                const SizedBox(height: 8),
+                                _buildPriorityPills(priorityFilter),
                                 const SizedBox(height: 10),
                                 Expanded(
                                   child: _buildTaskList(
@@ -201,11 +209,13 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                           children: [
                             const TaskProgressPieCard(),
                             const SizedBox(height: 12),
-                            _buildSearchField(),
+                            _buildSearchAndSortBar(),
                             const SizedBox(height: 10),
                             _buildTabBar(activeTab, counts),
                             const SizedBox(height: 8),
                             _buildCategoryPills(categories, categoryFilter),
+                            const SizedBox(height: 8),
+                            _buildPriorityPills(priorityFilter),
                             const SizedBox(height: 10),
                             SizedBox(
                               height: 480,
@@ -235,45 +245,86 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     );
   }
 
-  Widget _buildSearchField() {
-    return Container(
-      height: 42,
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderCard),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          const Icon(Icons.search, size: 18, color: AppColors.textMuted),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-              decoration: const InputDecoration(
-                hintText: 'Search tasks by title, note, or tag...',
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                filled: false,
-              ),
-              onChanged: (val) {
-                ref.read(taskSearchQueryProvider.notifier).state = val;
-              },
+  Widget _buildSearchAndSortBar() {
+    final sortOrder = ref.watch(taskSortOrderProvider);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.bgCard,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.borderCard),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                const Icon(Icons.search, size: 18, color: AppColors.textMuted),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                    decoration: const InputDecoration(
+                      hintText: 'Search tasks...',
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      filled: false,
+                    ),
+                    onChanged: (val) {
+                      ref.read(taskSearchQueryProvider.notifier).state = val;
+                    },
+                  ),
+                ),
+                if (_searchController.text.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                      ref.read(taskSearchQueryProvider.notifier).state = '';
+                    },
+                    child: const Icon(Icons.clear, size: 16, color: AppColors.textMuted),
+                  ),
+              ],
             ),
           ),
-          if (_searchController.text.isNotEmpty)
-            GestureDetector(
-              onTap: () {
-                _searchController.clear();
-                ref.read(taskSearchQueryProvider.notifier).state = '';
-              },
-              child: const Icon(Icons.clear, size: 16, color: AppColors.textMuted),
+        ),
+        const SizedBox(width: 8),
+        InkWell(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            TaskSortSheet.show(context);
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              color: AppColors.bgCard,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.borderCard),
             ),
-        ],
-      ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(sortOrder.icon, size: 16, color: AppColors.tealAccent),
+                const SizedBox(width: 6),
+                const Text(
+                  'Sort',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const Icon(Icons.arrow_drop_down, size: 18, color: AppColors.textMuted),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -282,10 +333,17 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
+          _buildTabChip(TaskFilterTab.all, 'All', counts[TaskFilterTab.all] ?? 0, activeTab),
           _buildTabChip(TaskFilterTab.today, 'Today', counts[TaskFilterTab.today] ?? 0, activeTab),
           _buildTabChip(TaskFilterTab.upcoming, 'Upcoming', counts[TaskFilterTab.upcoming] ?? 0, activeTab),
+          _buildTabChip(
+            TaskFilterTab.overdue,
+            'Overdue',
+            counts[TaskFilterTab.overdue] ?? 0,
+            activeTab,
+            isAlert: (counts[TaskFilterTab.overdue] ?? 0) > 0,
+          ),
           _buildTabChip(TaskFilterTab.completed, 'Completed', counts[TaskFilterTab.completed] ?? 0, activeTab),
-          _buildTabChip(TaskFilterTab.all, 'All', counts[TaskFilterTab.all] ?? 0, activeTab),
         ],
       ),
     );
@@ -303,6 +361,7 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
           final isSelected = (categoryFilter == null && cat == 'All') || categoryFilter == cat;
           return GestureDetector(
             onTap: () {
+              HapticFeedback.selectionClick();
               ref.read(taskCategoryFilterProvider.notifier).state = cat == 'All' ? null : cat;
             },
             child: Container(
@@ -323,6 +382,64 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
                     color: isSelected ? Colors.white : AppColors.textSecondary,
                   ),
                 ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPriorityPills(String? priorityFilter) {
+    final priorities = ['All', 'High', 'Medium', 'Low'];
+    return SizedBox(
+      height: 28,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: priorities.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (ctx, index) {
+          final p = priorities[index];
+          final isSelected = (priorityFilter == null && p == 'All') || priorityFilter == p;
+          Color pColor = AppColors.textSecondary;
+          if (p == 'High') pColor = const Color(0xFFFF5252);
+          if (p == 'Medium') pColor = const Color(0xFFFFB142);
+          if (p == 'Low') pColor = const Color(0xFF2ED573);
+
+          return GestureDetector(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              ref.read(taskPriorityFilterProvider.notifier).state = p == 'All' ? null : p;
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.navyPrimary : AppColors.bgCard,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: isSelected ? AppColors.navyPrimary : AppColors.borderSubtle,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (p != 'All') ...[
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(color: pColor, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 5),
+                  ],
+                  Text(
+                    p == 'All' ? 'All Priorities' : p,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? Colors.white : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -389,7 +506,36 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
             return TaskCardItem(
               key: ValueKey(task.id),
               task: task,
-              onToggleDone: () => firestore.toggleTaskDone(uid, task),
+              onToggleDone: () {
+                if (task.done) {
+                  HapticFeedback.lightImpact();
+                } else {
+                  HapticFeedback.mediumImpact();
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      backgroundColor: AppColors.navyPrimary,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        side: const BorderSide(color: AppColors.borderSubtle),
+                      ),
+                      content: const Row(
+                        children: [
+                          Icon(Icons.check_circle_rounded, color: AppColors.tealAccent, size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'Task completed! Great progress.',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+                firestore.toggleTaskDone(uid, task);
+              },
               onEdit: () => _openTaskEditor(task),
               onDelete: () => _confirmDelete(task),
             );
@@ -399,37 +545,60 @@ class _TasksScreenState extends ConsumerState<TasksScreen> {
     );
   }
 
-  Widget _buildTabChip(TaskFilterTab tab, String label, int count, TaskFilterTab current) {
+  Widget _buildTabChip(TaskFilterTab tab, String label, int count, TaskFilterTab current, {bool isAlert = false}) {
     final isSelected = tab == current;
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: InkWell(
         onTap: () {
+          HapticFeedback.selectionClick();
           ref.read(taskFilterTabProvider.notifier).state = tab;
         },
         borderRadius: BorderRadius.circular(6),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.navyPrimary : AppColors.bgCard,
+            color: isSelected
+                ? (isAlert ? AppColors.danger.withValues(alpha: 0.25) : AppColors.navyPrimary)
+                : AppColors.bgCard,
             borderRadius: BorderRadius.circular(6),
             border: Border.all(
-              color: isSelected ? AppColors.navyPrimary : AppColors.borderCard,
+              color: isSelected
+                  ? (isAlert ? AppColors.danger : AppColors.navyPrimary)
+                  : (isAlert ? AppColors.danger.withValues(alpha: 0.5) : AppColors.borderCard),
             ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (isSelected) ...[
-                const Icon(Icons.check, size: 12, color: AppColors.tealAccent),
-                const SizedBox(width: 5),
+              if (isAlert) ...[
+                const Icon(Icons.warning_amber_rounded, size: 13, color: AppColors.danger),
+                const SizedBox(width: 4),
               ],
               Text(
-                '$label ($count)',
+                label,
                 style: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? Colors.white : AppColors.textSecondary,
+                  color: isSelected
+                      ? (isAlert ? AppColors.danger : Colors.white)
+                      : (isAlert ? AppColors.danger : AppColors.textSecondary),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isAlert ? AppColors.danger.withValues(alpha: 0.2) : AppColors.bgInput,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$count',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: isAlert ? AppColors.danger : AppColors.textMuted,
+                  ),
                 ),
               ),
             ],
