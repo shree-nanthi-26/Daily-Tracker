@@ -164,5 +164,169 @@ class AppTheme {
   }
 
   // Backward compatible alias
-  static ThemeData get darkTheme => lightTheme;
+  static ThemeData get deepNavyTheme => lightTheme;
+  static ThemeData get darkTheme => amoledBlackTheme;
+
+  static ThemeData get amoledBlackTheme {
+    final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+    final headingFont = GoogleFonts.outfitTextTheme(ThemeData.dark().textTheme);
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: Colors.black,
+      colorScheme: const ColorScheme.dark(
+        primary: AppColors.tealAccent,
+        secondary: Color(0xFF38BDF8),
+        surface: Color(0xFF101010),
+        onSurface: Colors.white,
+        error: AppColors.danger,
+        onError: Colors.white,
+      ),
+      textTheme: baseTextTheme.copyWith(
+        headlineLarge: headingFont.headlineLarge?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        ),
+        headlineMedium: headingFont.headlineMedium?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        ),
+        headlineSmall: headingFont.headlineSmall?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: headingFont.titleLarge?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        titleMedium: baseTextTheme.titleMedium?.copyWith(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+        titleSmall: baseTextTheme.titleSmall?.copyWith(
+          color: Colors.white70,
+          fontWeight: FontWeight.w600,
+        ),
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+          color: Colors.white,
+        ),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+          color: Colors.white70,
+        ),
+        bodySmall: baseTextTheme.bodySmall?.copyWith(
+          color: Colors.white38,
+        ),
+      ),
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        centerTitle: false,
+        titleTextStyle: GoogleFonts.outfit(
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+          letterSpacing: -0.2,
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      cardTheme: CardThemeData(
+        color: const Color(0xFF101010),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFF242424), width: 1),
+        ),
+        margin: EdgeInsets.zero,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF161616),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
+        labelStyle: const TextStyle(color: Colors.white70, fontSize: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Color(0xFF2A2A2A)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.tealAccent, width: 1.5),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.tealAccent,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
+          textStyle: GoogleFonts.inter(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: Color(0xFF242424),
+        thickness: 1,
+        space: 1,
+      ),
+    );
+  }
+
+  static ThemeData get modernLightTheme {
+    final baseTextTheme = GoogleFonts.interTextTheme(ThemeData.light().textTheme);
+    final headingFont = GoogleFonts.outfitTextTheme(ThemeData.light().textTheme);
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      scaffoldBackgroundColor: const Color(0xFFF1F5F9),
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF0F172A),
+        secondary: Color(0xFF0D9488),
+        surface: Colors.white,
+        onSurface: Color(0xFF0F172A),
+        error: AppColors.danger,
+        onError: Colors.white,
+      ),
+      textTheme: baseTextTheme.copyWith(
+        headlineLarge: headingFont.headlineLarge?.copyWith(
+          color: const Color(0xFF0F172A),
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.5,
+        ),
+        titleLarge: headingFont.titleLarge?.copyWith(
+          color: const Color(0xFF0F172A),
+          fontWeight: FontWeight.w600,
+        ),
+        bodyLarge: baseTextTheme.bodyLarge?.copyWith(
+          color: const Color(0xFF0F172A),
+        ),
+        bodyMedium: baseTextTheme.bodyMedium?.copyWith(
+          color: const Color(0xFF475569),
+        ),
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: 0.04),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
+        margin: EdgeInsets.zero,
+      ),
+    );
+  }
 }

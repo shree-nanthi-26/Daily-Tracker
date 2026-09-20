@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/theme/app_theme.dart';
 import 'services/firebase_service.dart';
 import 'providers/auth_provider.dart';
+import 'providers/settings_provider.dart';
 import 'views/auth/login_screen.dart';
 import 'views/home/main_scaffold.dart';
 
@@ -101,7 +101,7 @@ class _DailyWorkAppState extends ConsumerState<DailyWorkApp> with WidgetsBinding
       child: MaterialApp(
         title: 'Daily Work Tracker',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
+        theme: ref.watch(appThemeDataProvider),
         home: authState.when(
           data: (user) {
             if (user != null || isGuestSignedIn) {

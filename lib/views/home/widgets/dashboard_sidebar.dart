@@ -120,6 +120,11 @@ class DashboardSidebar extends ConsumerWidget {
                     icon: Icons.track_changes_rounded,
                     label: 'Goals',
                   ),
+                  _buildNavItem(
+                    index: 4,
+                    icon: Icons.settings_rounded,
+                    label: 'Settings',
+                  ),
 
                   const SizedBox(height: 14),
 

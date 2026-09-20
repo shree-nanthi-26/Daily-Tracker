@@ -4,6 +4,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../tasks/tasks_screen.dart';
 import '../habits/habits_screen.dart';
 import '../goals/goals_screen.dart';
+import '../settings/settings_screen.dart';
 import 'widgets/dashboard_sidebar.dart';
 import 'widgets/dashboard_top_bar.dart';
 
@@ -23,6 +24,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     'Task Management',
     'Habit Tracker & Consistency',
     'Goals & Targets',
+    'Settings & Profile',
   ];
 
   void _onTabSelect(int index) {
@@ -38,6 +40,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       const TasksScreen(),
       const HabitsScreen(),
       const GoalsScreen(),
+      const SettingsScreen(),
     ];
 
     return LayoutBuilder(
@@ -63,6 +66,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                       DashboardTopBar(
                         title: _tabTitles[_currentIndex],
                         showDrawerButton: false,
+                        onOpenSettings: () => _onTabSelect(4),
                       ),
                       Expanded(
                         child: IndexedStack(
@@ -106,6 +110,7 @@ class _MainScaffoldState extends State<MainScaffold> {
                   title: _tabTitles[_currentIndex],
                   showDrawerButton: true,
                   onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+                  onOpenSettings: () => _onTabSelect(4),
                 ),
               ),
             ),
@@ -151,6 +156,11 @@ class _MainScaffoldState extends State<MainScaffold> {
                     icon: Icon(Icons.track_changes_outlined),
                     activeIcon: Icon(Icons.track_changes_rounded),
                     label: 'Goals',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.settings_outlined),
+                    activeIcon: Icon(Icons.settings_rounded),
+                    label: 'Settings',
                   ),
                 ],
               ),

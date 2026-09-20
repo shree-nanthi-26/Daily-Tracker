@@ -51,6 +51,14 @@ class AuthService {
     return null;
   }
 
+  Future<void> sendPasswordResetEmail(String email) async {
+    if (_auth != null) {
+      await _auth.sendPasswordResetEmail(email: email);
+    } else {
+      debugPrint('[AuthService] Demo mode: Simulated sending password reset email to $email');
+    }
+  }
+
   Future<void> signOut() async {
     if (_auth != null) {
       await _auth.signOut();

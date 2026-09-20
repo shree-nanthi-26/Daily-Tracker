@@ -4,14 +4,18 @@ import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/task_provider.dart';
 
+import '../../../providers/settings_provider.dart';
+
 class DashboardTopBar extends ConsumerWidget {
   final VoidCallback? onOpenDrawer;
+  final VoidCallback? onOpenSettings;
   final bool showDrawerButton;
   final String title;
 
   const DashboardTopBar({
     super.key,
     this.onOpenDrawer,
+    this.onOpenSettings,
     this.showDrawerButton = false,
     this.title = 'Dashboard',
   });
@@ -20,11 +24,7 @@ class DashboardTopBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authService = ref.watch(authServiceProvider);
     final user = authService.currentUser;
-    // Default to Shree Nantheeshwaran if demo user or name not set
-    final rawName = user?.displayName ?? (user?.email?.split('@').first);
-    final displayName = (rawName == null || rawName.isEmpty || rawName == 'demo')
-        ? 'Shree Nantheeshwaran'
-        : rawName;
+    final displayName = ref.watch(userDisplayNameProvider);
     final userEmail = user?.email ?? 'shree@dailywork.app';
     final initialLetter = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'S';
 
@@ -149,6 +149,8 @@ class DashboardTopBar extends ConsumerWidget {
                       if (value == 'logout') {
                         ref.read(isGuestSignedInProvider.notifier).state = false;
                         await authService.signOut();
+                      } else if (value == 'settings') {
+                        onOpenSettings?.call();
                       } else if (value == 'clear_sample') {
                         final firestore = ref.read(firestoreServiceProvider);
                         firestore.clearSampleData();
@@ -183,6 +185,17 @@ class DashboardTopBar extends ConsumerWidget {
                                 color: AppColors.textSecondary,
                               ),
                             ),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem<String>(
+                        value: 'settings',
+                        child: Row(
+                          children: [
+                            Icon(Icons.settings_rounded, size: 16, color: AppColors.tealAccent),
+                            SizedBox(width: 8),
+                            Text('Settings & Profile', style: TextStyle(color: AppColors.textPrimary, fontSize: 13)),
                           ],
                         ),
                       ),

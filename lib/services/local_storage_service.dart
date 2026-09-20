@@ -15,6 +15,9 @@ class LocalStorageService {
   static const String _kCompletionsKey = 'dailywork_local_completions';
   static const String _kGoalsKey = 'dailywork_local_goals';
   static const String _kInitializedKey = 'dailywork_local_initialized';
+  static const String _kDisplayNameKey = 'dailywork_local_display_name';
+  static const String _kThemeModeKey = 'dailywork_local_theme_mode';
+  static const String _kHapticsEnabledKey = 'dailywork_local_haptics_enabled';
 
   SharedPreferences? _prefs;
 
@@ -148,6 +151,100 @@ class LocalStorageService {
       await prefs.setString(_kGoalsKey, jsonStr);
     } catch (e) {
       debugPrint('[LocalStorageService] saveGoals error: $e');
+    }
+  }
+
+  // ================= SETTINGS & PREFERENCES =================
+  Future<String?> loadDisplayName() async {
+    try {
+      final prefs = await _getPrefs();
+      return prefs.getString(_kDisplayNameKey);
+    } catch (e) {
+      debugPrint('[LocalStorageService] loadDisplayName error: $e');
+      return null;
+    }
+  }
+
+  Future<void> saveDisplayName(String name) async {
+    try {
+      final prefs = await _getPrefs();
+      await prefs.setString(_kDisplayNameKey, name);
+    } catch (e) {
+      debugPrint('[LocalStorageService] saveDisplayName error: $e');
+    }
+  }
+
+  Future<String?> loadThemeMode() async {
+    try {
+      final prefs = await _getPrefs();
+      return prefs.getString(_kThemeModeKey);
+    } catch (e) {
+      debugPrint('[LocalStorageService] loadThemeMode error: $e');
+      return null;
+    }
+  }
+
+  Future<void> saveThemeMode(String mode) async {
+    try {
+      final prefs = await _getPrefs();
+      await prefs.setString(_kThemeModeKey, mode);
+    } catch (e) {
+      debugPrint('[LocalStorageService] saveThemeMode error: $e');
+    }
+  }
+
+  Future<bool> loadHapticsEnabled() async {
+    try {
+      final prefs = await _getPrefs();
+      return prefs.getBool(_kHapticsEnabledKey) ?? true;
+    } catch (e) {
+      debugPrint('[LocalStorageService] loadHapticsEnabled error: $e');
+      return true;
+    }
+  }
+
+  Future<void> saveHapticsEnabled(bool enabled) async {
+    try {
+      final prefs = await _getPrefs();
+      await prefs.setBool(_kHapticsEnabledKey, enabled);
+    } catch (e) {
+      debugPrint('[LocalStorageService] saveHapticsEnabled error: $e');
+    }
+  }
+
+  // ================= BACKUP & EXPORT =================
+  Future<String> exportAllDataAsJson() async {
+    try {
+      final tasks = await loadTasks() ?? [];
+      final habits = await loadHabits() ?? [];
+      final completions = await loadCompletions() ?? [];
+      final goals = await loadGoals() ?? [];
+      final displayName = await loadDisplayName() ?? 'User';
+
+      final exportData = {
+        'version': '1.0.0',
+        'exportedAt': DateTime.now().toUtc().toIso8601String(),
+        'appName': 'DailyWork Mobile',
+        'profile': {
+          'displayName': displayName,
+        },
+        'stats': {
+          'tasksCount': tasks.length,
+          'habitsCount': habits.length,
+          'completionsCount': completions.length,
+          'goalsCount': goals.length,
+        },
+        'tasks': tasks.map((t) => t.toJson()).toList(),
+        'habits': habits.map((h) => h.toJson()).toList(),
+        'completions': completions.map((c) => c.toJson()).toList(),
+        'goals': goals.map((g) => g.toJson()).toList(),
+      };
+
+      const encoder = JsonEncoder.withIndent('  ');
+      return encoder.convert(exportData);
+    } catch (e) {
+      debugPrint('[LocalStorageService] exportAllDataAsJson error: $e');
+      return jsonEncode({'error': e.toString()});
     }
   }
 
