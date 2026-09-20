@@ -35,9 +35,21 @@ class AuthService {
     return null;
   }
 
-  Future<UserCredential?> registerWithEmailAndPassword(String email, String password) async {
+  Future<UserCredential?> registerWithEmailAndPassword(
+    String email,
+    String password, {
+    String? displayName,
+  }) async {
     if (_auth != null) {
-      return await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+      if (displayName != null && displayName.trim().isNotEmpty) {
+        try {
+          await cred.user?.updateDisplayName(displayName.trim());
+        } catch (e) {
+          debugPrint('[AuthService] updateDisplayName error: $e');
+        }
+      }
+      return cred;
     }
     debugPrint('[AuthService] Registered in local demo mode (user: $demoUid)');
     return null;

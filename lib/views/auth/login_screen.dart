@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/settings_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -13,6 +14,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isRegistering = false;
@@ -21,6 +23,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -29,6 +32,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _handleEmailAuth() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
+
+    if (_isRegistering && name.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your full name');
+      return;
+    }
 
     if (email.isEmpty || password.isEmpty) {
       setState(() => _errorMessage = 'Please enter both email and password');
@@ -43,7 +52,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       final authService = ref.read(authServiceProvider);
       if (_isRegistering) {
-        await authService.registerWithEmailAndPassword(email, password);
+        await authService.registerWithEmailAndPassword(
+          email,
+          password,
+          displayName: name,
+        );
+        ref.read(userDisplayNameProvider.notifier).updateDisplayName(name);
       } else {
         await authService.signInWithEmailAndPassword(email, password);
       }
@@ -177,6 +191,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
+                        ],
+
+                        // Full Name Field (when signing up)
+                        if (_isRegistering) ...[
+                          const Text(
+                            'Full Name',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _nameController,
+                            textCapitalization: TextCapitalization.words,
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                            decoration: const InputDecoration(
+                              hintText: 'e.g. Alex Johnson',
+                              prefixIcon: Icon(Icons.person_outline_rounded, size: 18, color: AppColors.textMuted),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
                         ],
 
                         // Email Field

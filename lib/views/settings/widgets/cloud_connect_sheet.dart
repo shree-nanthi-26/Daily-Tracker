@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/settings_provider.dart';
 import '../../../providers/task_provider.dart';
 
 class CloudConnectSheet extends ConsumerStatefulWidget {
@@ -23,6 +24,7 @@ class CloudConnectSheet extends ConsumerStatefulWidget {
 
 class _CloudConnectSheetState extends ConsumerState<CloudConnectSheet> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -34,6 +36,7 @@ class _CloudConnectSheetState extends ConsumerState<CloudConnectSheet> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -52,11 +55,19 @@ class _CloudConnectSheetState extends ConsumerState<CloudConnectSheet> {
 
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
+    final name = _nameController.text.trim();
 
     try {
       UserCredential? cred;
       if (_isRegisterMode) {
-        cred = await authService.registerWithEmailAndPassword(email, password);
+        cred = await authService.registerWithEmailAndPassword(
+          email,
+          password,
+          displayName: name.isNotEmpty ? name : null,
+        );
+        if (name.isNotEmpty) {
+          ref.read(userDisplayNameProvider.notifier).updateDisplayName(name);
+        }
       } else {
         cred = await authService.signInWithEmailAndPassword(email, password);
       }
@@ -319,6 +330,27 @@ class _CloudConnectSheetState extends ConsumerState<CloudConnectSheet> {
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // Full Name Field (when creating account)
+              if (_isRegisterMode) ...[
+                TextFormField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    hintText: 'e.g. Alex Johnson',
+                    prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                  ),
+                  validator: (val) {
+                    if (_isRegisterMode && (val == null || val.trim().isEmpty)) {
+                      return 'Please enter your full name';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
               ],
