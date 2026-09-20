@@ -7,11 +7,13 @@ import '../models/habit_model.dart';
 import '../models/habit_completion_model.dart';
 import '../models/goal_model.dart';
 import 'firebase_service.dart';
+import 'local_storage_service.dart';
 
 class FirestoreService {
   final FirebaseFirestore? _db =
       FirebaseService.isInitialized ? FirebaseFirestore.instance : null;
   final Uuid _uuid = const Uuid();
+  final LocalStorageService _storage = LocalStorageService();
 
   // Fallback in-memory store if Firebase credentials aren't connected yet
   final List<TaskModel> _mockTasks = [
@@ -217,7 +219,49 @@ class FirestoreService {
       StreamController<List<GoalModel>>.broadcast();
 
   FirestoreService() {
-    _initMockCompletions();
+    _initLocalStorage();
+  }
+
+  Future<void> _initLocalStorage() async {
+    try {
+      final bool initialized = await _storage.isInitialized();
+      if (initialized) {
+        final savedTasks = await _storage.loadTasks();
+        if (savedTasks != null) {
+          _mockTasks.clear();
+          _mockTasks.addAll(savedTasks);
+        }
+
+        final savedHabits = await _storage.loadHabits();
+        if (savedHabits != null) {
+          _mockHabits.clear();
+          _mockHabits.addAll(savedHabits);
+        }
+
+        final savedCompletions = await _storage.loadCompletions();
+        if (savedCompletions != null) {
+          _mockCompletions.clear();
+          _mockCompletions.addAll(savedCompletions);
+        }
+
+        final savedGoals = await _storage.loadGoals();
+        if (savedGoals != null) {
+          _mockGoals.clear();
+          _mockGoals.addAll(savedGoals);
+        }
+      } else {
+        _initMockCompletions();
+        await _storage.saveTasks(_mockTasks);
+        await _storage.saveHabits(_mockHabits);
+        await _storage.saveCompletions(_mockCompletions);
+        await _storage.saveGoals(_mockGoals);
+        await _storage.setInitialized(true);
+      }
+      triggerMockInitialState();
+      debugPrint('[FirestoreService] Local storage loaded: ${_mockTasks.length} tasks, ${_mockHabits.length} habits, ${_mockCompletions.length} completions, ${_mockGoals.length} goals.');
+    } catch (e) {
+      debugPrint('[FirestoreService] _initLocalStorage error: $e');
+    }
   }
 
   void _initMockCompletions() {
@@ -310,6 +354,7 @@ class FirestoreService {
           if (items.isNotEmpty) {
             _mockTasks.clear();
             _mockTasks.addAll(items);
+            _storage.saveTasks(_mockTasks);
             if (!controller.isClosed) controller.add(items);
           }
         },
@@ -332,6 +377,7 @@ class FirestoreService {
   Future<void> createTask(String uid, TaskModel task) async {
     final newTask = task.id.isEmpty ? task.copyWith(id: _uuid.v4()) : task;
     _mockTasks.insert(0, newTask);
+    _storage.saveTasks(_mockTasks);
     _mockTaskStream.add(List.from(_mockTasks));
 
     if (_db != null) {
@@ -352,6 +398,7 @@ class FirestoreService {
     final index = _mockTasks.indexWhere((t) => t.id == task.id);
     if (index != -1) {
       _mockTasks[index] = task;
+      _storage.saveTasks(_mockTasks);
       _mockTaskStream.add(List.from(_mockTasks));
     }
 
@@ -380,6 +427,7 @@ class FirestoreService {
 
   Future<void> deleteTask(String uid, String taskId) async {
     _mockTasks.removeWhere((t) => t.id == taskId);
+    _storage.saveTasks(_mockTasks);
     _mockTaskStream.add(List.from(_mockTasks));
 
     if (_db != null) {
@@ -436,6 +484,7 @@ class FirestoreService {
           if (items.isNotEmpty) {
             _mockHabits.clear();
             _mockHabits.addAll(items);
+            _storage.saveHabits(_mockHabits);
             if (!controller.isClosed) controller.add(items);
           }
         },
@@ -458,6 +507,7 @@ class FirestoreService {
   Future<void> createHabit(String uid, HabitModel habit) async {
     final newHabit = habit.id.isEmpty ? habit.copyWith(id: _uuid.v4()) : habit;
     _mockHabits.add(newHabit);
+    _storage.saveHabits(_mockHabits);
     _mockHabitStream.add(List.from(_mockHabits));
 
     if (_db != null) {
@@ -478,6 +528,7 @@ class FirestoreService {
     final idx = _mockHabits.indexWhere((h) => h.id == habit.id);
     if (idx != -1) {
       _mockHabits[idx] = habit;
+      _storage.saveHabits(_mockHabits);
       _mockHabitStream.add(List.from(_mockHabits));
     }
 
@@ -497,6 +548,7 @@ class FirestoreService {
 
   Future<void> deleteHabit(String uid, String habitId) async {
     _mockHabits.removeWhere((h) => h.id == habitId);
+    _storage.saveHabits(_mockHabits);
     _mockHabitStream.add(List.from(_mockHabits));
 
     if (_db != null) {
@@ -553,6 +605,7 @@ class FirestoreService {
               .toList();
           _mockCompletions.clear();
           _mockCompletions.addAll(items);
+          _storage.saveCompletions(_mockCompletions);
           if (!controller.isClosed) {
             controller.add(List<HabitCompletionModel>.from(_mockCompletions));
           }
@@ -590,6 +643,7 @@ class FirestoreService {
         completedAt: DateTime.now(),
       ));
     }
+    _storage.saveCompletions(_mockCompletions);
     _mockCompletionStream.add(List.from(_mockCompletions));
     debugPrint('[FirestoreService] toggleCompletion optimistic toggle: $habitId (done: ${!isDone})');
 
@@ -661,6 +715,7 @@ class FirestoreService {
           if (items.isNotEmpty) {
             _mockGoals.clear();
             _mockGoals.addAll(items);
+            _storage.saveGoals(_mockGoals);
             if (!controller.isClosed) controller.add(items);
           }
         },
@@ -683,6 +738,7 @@ class FirestoreService {
   Future<void> createGoal(String uid, GoalModel goal) async {
     final newGoal = goal.id.isEmpty ? goal.copyWith(id: _uuid.v4()) : goal;
     _mockGoals.add(newGoal);
+    _storage.saveGoals(_mockGoals);
     _mockGoalStream.add(List.from(_mockGoals));
 
     if (_db != null) {
@@ -703,6 +759,7 @@ class FirestoreService {
     final idx = _mockGoals.indexWhere((g) => g.id == goal.id);
     if (idx != -1) {
       _mockGoals[idx] = goal;
+      _storage.saveGoals(_mockGoals);
       _mockGoalStream.add(List.from(_mockGoals));
     }
 
@@ -726,6 +783,7 @@ class FirestoreService {
       final cur = _mockGoals[idx].currentValue;
       final updatedVal = (cur + delta).clamp(0.0, 9999999.0);
       _mockGoals[idx] = _mockGoals[idx].copyWith(currentValue: updatedVal);
+      _storage.saveGoals(_mockGoals);
       _mockGoalStream.add(List.from(_mockGoals));
     }
 
@@ -747,6 +805,7 @@ class FirestoreService {
 
   Future<void> deleteGoal(String uid, String goalId) async {
     _mockGoals.removeWhere((g) => g.id == goalId);
+    _storage.saveGoals(_mockGoals);
     _mockGoalStream.add(List.from(_mockGoals));
 
     if (_db != null) {
@@ -777,6 +836,8 @@ class FirestoreService {
     _mockHabits.clear();
     _mockCompletions.clear();
     _mockGoals.clear();
+    _storage.clearAll();
+    _storage.setInitialized(true);
     _mockTaskStream.add([]);
     _mockHabitStream.add([]);
     _mockCompletionStream.add([]);

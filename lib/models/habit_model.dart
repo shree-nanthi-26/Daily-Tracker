@@ -8,6 +8,7 @@ class HabitModel {
   final int targetFrequency; // e.g. 7 for daily, 5 for weekdays, etc.
   final String? reminderTime; // e.g. '08:00 AM'
   final int sortOrder;
+  final bool isArchived;
   final DateTime createdAt;
 
   const HabitModel({
@@ -18,6 +19,7 @@ class HabitModel {
     this.targetFrequency = 7,
     this.reminderTime,
     this.sortOrder = 0,
+    this.isArchived = false,
     required this.createdAt,
   });
 
@@ -29,6 +31,7 @@ class HabitModel {
     int? targetFrequency,
     String? reminderTime,
     int? sortOrder,
+    bool? isArchived,
     DateTime? createdAt,
   }) {
     return HabitModel(
@@ -39,6 +42,7 @@ class HabitModel {
       targetFrequency: targetFrequency ?? this.targetFrequency,
       reminderTime: reminderTime ?? this.reminderTime,
       sortOrder: sortOrder ?? this.sortOrder,
+      isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -52,6 +56,7 @@ class HabitModel {
       'target_frequency': targetFrequency,
       'reminder_time': reminderTime,
       'sort_order': sortOrder,
+      'is_archived': isArchived,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -76,6 +81,7 @@ class HabitModel {
       targetFrequency: (json['target_frequency'] as num?)?.toInt() ?? 7,
       reminderTime: json['reminder_time'] as String?,
       sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+      isArchived: json['is_archived'] as bool? ?? false,
       createdAt: created,
     );
   }
@@ -93,6 +99,7 @@ class HabitModel {
       'target_frequency': targetFrequency,
       'reminder_time': reminderTime,
       'sort_order': sortOrder,
+      'is_archived': isArchived,
       'created_at': Timestamp.fromDate(createdAt),
     };
   }

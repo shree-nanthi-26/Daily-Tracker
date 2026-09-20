@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
@@ -19,7 +20,8 @@ class HabitCalendarCard extends ConsumerWidget {
     final daysCount = ref.watch(daysInSelectedMonthProvider);
     final monthName = ref.watch(selectedMonthNameProvider);
 
-    final habits = ref.watch(habitsStreamProvider).value ?? [];
+    final allHabits = ref.watch(habitsStreamProvider).value ?? [];
+    final habits = allHabits.where((h) => !h.isArchived).toList();
     final completionsMap = ref.watch(habitCompletionsMapProvider);
     final firestore = ref.watch(firestoreServiceProvider);
     final uid = ref.watch(currentUserIdProvider);
@@ -122,6 +124,7 @@ class HabitCalendarCard extends ConsumerWidget {
                                 message: '${h.title}\n$dateStr: ${isDone ? "Completed" : "Incomplete"}',
                                 child: InkWell(
                                   onTap: () {
+                                    HapticFeedback.lightImpact();
                                     firestore.toggleCompletion(uid, h.id, dateStr, isCurrentlyDone: isDone);
                                   },
                                   borderRadius: BorderRadius.circular(2),

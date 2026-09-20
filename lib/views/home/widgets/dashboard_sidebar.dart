@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/date_formatter.dart';
@@ -21,7 +22,8 @@ class DashboardSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final habits = ref.watch(habitsStreamProvider).value ?? [];
+    final allHabits = ref.watch(habitsStreamProvider).value ?? [];
+    final habits = allHabits.where((h) => !h.isArchived).toList();
     final completionsMap = ref.watch(habitCompletionsMapProvider);
     final firestore = ref.watch(firestoreServiceProvider);
     final uid = ref.watch(currentUserIdProvider);
@@ -287,6 +289,7 @@ class DashboardSidebar extends ConsumerWidget {
 
                       return InkWell(
                         onTap: () {
+                          HapticFeedback.lightImpact();
                           firestore.toggleCompletion(uid, h.id, todayStr, isCurrentlyDone: isDone);
                         },
                         borderRadius: BorderRadius.circular(4),

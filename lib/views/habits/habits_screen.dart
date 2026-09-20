@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/utils/date_formatter.dart';
 import '../../models/habit_model.dart';
@@ -8,6 +9,7 @@ import '../../providers/habit_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/task_provider.dart';
 import '../dashboard/widgets/streak_milestone_dialog.dart';
+import 'widgets/habit_detail_sheet.dart';
 
 class HabitsScreen extends ConsumerStatefulWidget {
   const HabitsScreen({super.key});
@@ -17,11 +19,46 @@ class HabitsScreen extends ConsumerStatefulWidget {
 }
 
 class _HabitsScreenState extends ConsumerState<HabitsScreen> {
+  String _activeFilter = 'active'; // 'active', 'archived', 'all'
+
   Future<void> _handleToggleCompletion(String uid, String habitId, String dateStr, {bool? isCurrentlyDone}) async {
     try {
+      if (isCurrentlyDone == true) {
+        HapticFeedback.lightImpact();
+      } else {
+        HapticFeedback.mediumImpact();
+      }
+
       debugPrint('[HabitsScreen] _handleToggleCompletion tapped: habit=$habitId date=$dateStr isCurrentlyDone=$isCurrentlyDone');
       final firestore = ref.read(firestoreServiceProvider);
       await firestore.toggleCompletion(uid, habitId, dateStr, isCurrentlyDone: isCurrentlyDone);
+
+      // Celebration snackbar when marked complete for today
+      final todayStr = DateFormatter.todayIso();
+      if (dateStr == todayStr && isCurrentlyDone != true && mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.navyPrimary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(color: AppColors.borderSubtle),
+            ),
+            content: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: AppColors.tealAccent, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Habit marked for today! Keep up the momentum.',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
 
       // Check if new streak reached an exact milestone
       final newStreak = ref.read(overallStreakProvider).currentStreak;
@@ -271,11 +308,48 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
     );
   }
 
+  Widget _buildFilterChip(String label, String value, int count) {
+    final isSelected = _activeFilter == value;
+    return ChoiceChip(
+      label: Text('$label ($count)'),
+      selected: isSelected,
+      selectedColor: AppColors.primary.withValues(alpha: 0.25),
+      backgroundColor: AppColors.bgCard,
+      side: BorderSide(
+        color: isSelected ? AppColors.primary : AppColors.borderSubtle,
+        width: isSelected ? 1.5 : 1,
+      ),
+      labelStyle: TextStyle(
+        fontSize: 12,
+        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+        color: isSelected ? AppColors.primary : AppColors.textSecondary,
+      ),
+      onSelected: (selected) {
+        if (selected) {
+          HapticFeedback.selectionClick();
+          setState(() => _activeFilter = value);
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final habits = ref.watch(habitsStreamProvider).value ?? [];
+    final allHabits = ref.watch(habitsStreamProvider).value ?? [];
     final completionsMap = ref.watch(habitCompletionsMapProvider);
     final uid = ref.watch(currentUserIdProvider);
+
+    final activeHabits = allHabits.where((h) => !h.isArchived).toList();
+    final archivedHabits = allHabits.where((h) => h.isArchived).toList();
+
+    List<HabitModel> displayedHabits;
+    if (_activeFilter == 'archived') {
+      displayedHabits = archivedHabits;
+    } else if (_activeFilter == 'all') {
+      displayedHabits = allHabits;
+    } else {
+      displayedHabits = activeHabits;
+    }
 
     final todayStr = DateFormatter.todayIso();
     final weekDays = DateFormatter.getCurrentWeekDays();
@@ -307,7 +381,10 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
-                    onPressed: () => _openHabitEditor(),
+                    onPressed: () {
+                      HapticFeedback.selectionClick();
+                      _openHabitEditor();
+                    },
                     icon: const Icon(Icons.add, size: 16),
                     label: const Text('Add Habit'),
                     style: ElevatedButton.styleFrom(
@@ -317,41 +394,62 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
+
+              // Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('Active', 'active', activeHabits.length),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('Archived', 'archived', archivedHabits.length),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('All', 'all', allHabits.length),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
 
               // Habits List
               Expanded(
-                child: habits.isEmpty
+                child: displayedHabits.isEmpty
                     ? Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(
-                              Icons.repeat_rounded,
+                              _activeFilter == 'archived'
+                                  ? Icons.archive_outlined
+                                  : Icons.repeat_rounded,
                               size: 48,
                               color: AppColors.textMuted.withValues(alpha: 0.4),
                             ),
                             const SizedBox(height: 12),
-                            const Text(
-                              'No habits tracked yet',
-                              style: TextStyle(
+                            Text(
+                              _activeFilter == 'archived'
+                                  ? 'No archived habits'
+                                  : 'No habits tracked yet',
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: AppColors.textSecondary,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'Build consistency by adding your first daily habit',
-                              style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+                            Text(
+                              _activeFilter == 'archived'
+                                  ? 'Archive habits from their options menu when pausing them'
+                                  : 'Build consistency by adding your first daily habit',
+                              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
                             ),
                           ],
                         ),
                       )
                     : ListView.builder(
-                        itemCount: habits.length,
+                        itemCount: displayedHabits.length,
                         itemBuilder: (ctx, index) {
-                          final habit = habits[index];
+                          final habit = displayedHabits[index];
                           final isCompletedToday =
                               completionsMap[habit.id]?.contains(todayStr) ?? false;
                           final habitColor = Color(
@@ -359,189 +457,317 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
                                 0xFF6366F1,
                           );
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            decoration: BoxDecoration(
-                              color: AppColors.bgCard,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: AppColors.borderCard),
-                            ),
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Top row: Title, tag, more options
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: BoxDecoration(
-                                        color: habitColor,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        habit.title,
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                                      decoration: BoxDecoration(
-                                        color: habitColor.withValues(alpha: 0.12),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        habit.category,
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w600,
+                          return InkWell(
+                            onTap: () {
+                              HapticFeedback.lightImpact();
+                              HabitDetailSheet.show(
+                                context,
+                                habit: habit,
+                                onEdit: () => _openHabitEditor(habit),
+                                onDelete: () => _confirmDeleteHabit(habit),
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: AppColors.bgCard,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.borderCard),
+                              ),
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Top row: Title, tag, more options
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 10,
+                                        height: 10,
+                                        decoration: BoxDecoration(
                                           color: habitColor,
+                                          shape: BoxShape.circle,
                                         ),
                                       ),
-                                    ),
-                                    PopupMenuButton<String>(
-                                      icon: const Icon(Icons.more_vert, size: 18, color: AppColors.textMuted),
-                                      color: AppColors.navyPrimary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                        side: const BorderSide(color: AppColors.navySecondary),
-                                      ),
-                                      onSelected: (val) {
-                                        if (val == 'edit') _openHabitEditor(habit);
-                                        if (val == 'delete') _confirmDeleteHabit(habit);
-                                      },
-                                      itemBuilder: (c) => [
-                                        const PopupMenuItem(
-                                          value: 'edit',
-                                          child: Row(
-                                            children: [
-                                              Icon(Icons.edit_outlined, size: 16, color: Colors.white),
-                                              SizedBox(width: 8),
-                                              Text(
-                                                'Edit',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const PopupMenuItem(
-                                          value: 'delete',
-                                          child: Row(
-                                            children: [
-                                              Icon(Icons.delete_outline, size: 16, color: Color(0xFFFF6B6B)),
-                                              SizedBox(width: 8),
-                                              Text(
-                                                'Delete',
-                                                style: TextStyle(
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Color(0xFFFF6B6B),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Middle Row: Weekly Consistency Dot Grid
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: weekDays.map((d) {
-                                    final dStr = DateFormatter.toIsoDate(d);
-                                    final isDone = completionsMap[habit.id]?.contains(dStr) ?? false;
-                                    final isToday = dStr == todayStr;
-                                    final shortDay = DateFormatter.formatShortDay(d);
-
-                                    return Column(
-                                      children: [
-                                        Text(
-                                          shortDay[0], // M, T, W...
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          habit.title,
                                           style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                                            color: isToday ? AppColors.primary : AppColors.textMuted,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        GestureDetector(
-                                          onTap: () {
-                                            _handleToggleCompletion(uid, habit.id, dStr, isCurrentlyDone: isDone);
-                                          },
-                                          child: Container(
-                                            width: 32,
-                                            height: 32,
-                                            decoration: BoxDecoration(
-                                              color: isDone ? habitColor : AppColors.bgInput,
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: isToday
-                                                    ? AppColors.primary
-                                                    : (isDone ? habitColor : AppColors.borderSubtle),
-                                                width: isToday ? 1.5 : 1,
-                                              ),
-                                            ),
-                                            child: isDone
-                                                ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textPrimary,
+                                            decoration: habit.isArchived
+                                                ? TextDecoration.lineThrough
                                                 : null,
                                           ),
                                         ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                                        decoration: BoxDecoration(
+                                          color: habitColor.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          habit.category,
+                                          style: TextStyle(
+                                            fontSize: 10.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: habitColor,
+                                          ),
+                                        ),
+                                      ),
+                                      if (habit.isArchived) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.textMuted.withValues(alpha: 0.18),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'Archived',
+                                            style: TextStyle(fontSize: 9, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
                                       ],
-                                    );
-                                  }).toList(),
-                                ),
-                                const SizedBox(height: 14),
+                                      PopupMenuButton<String>(
+                                        icon: const Icon(Icons.more_vert, size: 18, color: AppColors.textMuted),
+                                        color: AppColors.navyPrimary,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(8),
+                                          side: const BorderSide(color: AppColors.navySecondary),
+                                        ),
+                                        onSelected: (val) {
+                                          if (val == 'details') {
+                                            HapticFeedback.lightImpact();
+                                            HabitDetailSheet.show(
+                                              context,
+                                              habit: habit,
+                                              onEdit: () => _openHabitEditor(habit),
+                                              onDelete: () => _confirmDeleteHabit(habit),
+                                            );
+                                          }
+                                          if (val == 'archive') {
+                                            HapticFeedback.mediumImpact();
+                                            final updated = habit.copyWith(isArchived: !habit.isArchived);
+                                            ref.read(firestoreServiceProvider).updateHabit(uid, updated);
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  updated.isArchived
+                                                      ? 'Habit "${habit.title}" archived'
+                                                      : 'Habit "${habit.title}" restored',
+                                                ),
+                                                duration: const Duration(seconds: 2),
+                                              ),
+                                            );
+                                          }
+                                          if (val == 'edit') {
+                                            HapticFeedback.selectionClick();
+                                            _openHabitEditor(habit);
+                                          }
+                                          if (val == 'delete') {
+                                            HapticFeedback.selectionClick();
+                                            _confirmDeleteHabit(habit);
+                                          }
+                                        },
+                                        itemBuilder: (c) => [
+                                          const PopupMenuItem(
+                                            value: 'details',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.calendar_month_outlined, size: 16, color: Colors.white),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Monthly Breakdown',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'archive',
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  habit.isArchived
+                                                      ? Icons.unarchive_outlined
+                                                      : Icons.archive_outlined,
+                                                  size: 16,
+                                                  color: Colors.white,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  habit.isArchived ? 'Restore Habit' : 'Archive Habit',
+                                                  style: const TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.edit_outlined, size: 16, color: Colors.white),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Edit',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(
+                                              children: [
+                                                Icon(Icons.delete_outline, size: 16, color: Color(0xFFFF6B6B)),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Delete',
+                                                  style: TextStyle(
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFFFF6B6B),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
 
-                                // Bottom Row: Frequency label & Today toggle
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      'Target: ${habit.targetFrequency} days / week',
-                                      style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
-                                    ),
-                                    OutlinedButton.icon(
-                                      onPressed: () {
-                                        _handleToggleCompletion(uid, habit.id, todayStr, isCurrentlyDone: isCompletedToday);
-                                      },
-                                      icon: Icon(
-                                        isCompletedToday ? Icons.check_circle : Icons.circle_outlined,
-                                        size: 14,
-                                        color: isCompletedToday ? AppColors.success : AppColors.textMuted,
-                                      ),
-                                      label: Text(
-                                        isCompletedToday ? 'Done Today' : 'Mark Today',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: isCompletedToday ? AppColors.success : AppColors.textSecondary,
+                                  // Middle Row: Weekly Consistency Dot Grid
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: weekDays.map((d) {
+                                      final dStr = DateFormatter.toIsoDate(d);
+                                      final isDone = completionsMap[habit.id]?.contains(dStr) ?? false;
+                                      final isToday = dStr == todayStr;
+                                      final shortDay = DateFormatter.formatShortDay(d);
+
+                                      return Column(
+                                        children: [
+                                          Text(
+                                            shortDay[0], // M, T, W...
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                                              color: isToday ? AppColors.primary : AppColors.textMuted,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          GestureDetector(
+                                            onTap: () {
+                                              _handleToggleCompletion(uid, habit.id, dStr, isCurrentlyDone: isDone);
+                                            },
+                                            child: Container(
+                                              width: 32,
+                                              height: 32,
+                                              decoration: BoxDecoration(
+                                                color: isDone ? habitColor : AppColors.bgInput,
+                                                borderRadius: BorderRadius.circular(8),
+                                                border: Border.all(
+                                                  color: isToday
+                                                      ? AppColors.primary
+                                                      : (isDone ? habitColor : AppColors.borderSubtle),
+                                                  width: isToday ? 1.5 : 1,
+                                                ),
+                                              ),
+                                              child: isDone
+                                                  ? const Icon(Icons.check, size: 16, color: Colors.white)
+                                                  : null,
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }).toList(),
+                                  ),
+                                  const SizedBox(height: 14),
+
+                                  // Bottom Row: Frequency label & Today toggle
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      InkWell(
+                                        onTap: () {
+                                          HapticFeedback.lightImpact();
+                                          HabitDetailSheet.show(
+                                            context,
+                                            habit: habit,
+                                            onEdit: () => _openHabitEditor(habit),
+                                            onDelete: () => _confirmDeleteHabit(habit),
+                                          );
+                                        },
+                                        borderRadius: BorderRadius.circular(6),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                          child: Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.calendar_month_outlined,
+                                                size: 13,
+                                                color: AppColors.tealAccent,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                'Target: ${habit.targetFrequency}d / wk',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: AppColors.textSecondary,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                      style: OutlinedButton.styleFrom(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                        side: BorderSide(
-                                          color: isCompletedToday ? AppColors.success : AppColors.borderSubtle,
+                                      OutlinedButton.icon(
+                                        onPressed: () {
+                                          _handleToggleCompletion(uid, habit.id, todayStr, isCurrentlyDone: isCompletedToday);
+                                        },
+                                        icon: Icon(
+                                          isCompletedToday ? Icons.check_circle : Icons.circle_outlined,
+                                          size: 14,
+                                          color: isCompletedToday ? AppColors.success : AppColors.textMuted,
+                                        ),
+                                        label: Text(
+                                          isCompletedToday ? 'Done Today' : 'Mark Today',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            color: isCompletedToday ? AppColors.success : AppColors.textSecondary,
+                                          ),
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          side: BorderSide(
+                                            color: isCompletedToday ? AppColors.success : AppColors.borderSubtle,
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         },
@@ -552,7 +778,10 @@ class _HabitsScreenState extends ConsumerState<HabitsScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openHabitEditor(),
+        onPressed: () {
+          HapticFeedback.selectionClick();
+          _openHabitEditor();
+        },
         child: const Icon(Icons.add),
       ),
     );
