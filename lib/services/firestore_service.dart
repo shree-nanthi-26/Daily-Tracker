@@ -23,203 +23,11 @@ class FirestoreService {
   List<HabitCompletionModel> get currentCompletions => List.unmodifiable(_mockCompletions);
   List<GoalModel> get currentGoals => List.unmodifiable(_mockGoals);
 
-  // Fallback in-memory store if Firebase credentials aren't connected yet
-  final List<TaskModel> _mockTasks = [
-    TaskModel(
-      id: 'mock_1',
-      text: 'Review pull request for API integration',
-      done: true,
-      priority: 'High',
-      dueDate: DateTime.now().toIso8601String().substring(0, 10),
-      category: 'Coding',
-      notes: 'Check authentication middleware & edge cases',
-      completedAt: DateTime.now().subtract(const Duration(hours: 1)),
-      createdAt: DateTime.now().subtract(const Duration(hours: 4)),
-    ),
-    TaskModel(
-      id: 'mock_2',
-      text: 'Implement progress analytics pie chart',
-      done: true,
-      priority: 'High',
-      dueDate: DateTime.now().toIso8601String().substring(0, 10),
-      category: 'Coding',
-      notes: 'Calculate task completion rates and priority breakdown',
-      completedAt: DateTime.now().subtract(const Duration(minutes: 30)),
-      createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-    ),
-    TaskModel(
-      id: 'mock_3',
-      text: 'Draft Q3 productivity roadmap',
-      done: false,
-      priority: 'High',
-      dueDate: DateTime.now().toIso8601String().substring(0, 10),
-      category: 'Work',
-      notes: 'Align goals with weekly performance benchmarks',
-      createdAt: DateTime.now().subtract(const Duration(hours: 5)),
-    ),
-    TaskModel(
-      id: 'mock_4',
-      text: 'Read documentation & system architecture',
-      done: false,
-      priority: 'Medium',
-      dueDate: DateTime.now().toIso8601String().substring(0, 10),
-      category: 'Study',
-      notes: 'Focus on Riverpod state flow and reactive providers',
-      createdAt: DateTime.now().subtract(const Duration(hours: 6)),
-    ),
-    TaskModel(
-      id: 'mock_5',
-      text: 'Weekly team sprint planning meeting',
-      done: false,
-      priority: 'Medium',
-      dueDate: DateTime.now().add(const Duration(days: 1)).toIso8601String().substring(0, 10),
-      category: 'Work',
-      notes: 'Prepare sprint backlog and key deliverables',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    TaskModel(
-      id: 'mock_6',
-      text: 'Research Flutter web canvas performance',
-      done: false,
-      priority: 'Low',
-      dueDate: DateTime.now().add(const Duration(days: 2)).toIso8601String().substring(0, 10),
-      category: 'Browser',
-      notes: 'Investigate WASM rendering pipeline in Flutter 3.24+',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    TaskModel(
-      id: 'mock_7',
-      text: 'Organize workspace & plan tomorrow',
-      done: true,
-      priority: 'Low',
-      dueDate: DateTime.now().toIso8601String().substring(0, 10),
-      category: 'Personal',
-      notes: 'Set top 3 priorities for the morning',
-      completedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      createdAt: DateTime.now().subtract(const Duration(hours: 8)),
-    ),
-  ];
-
-  final List<HabitModel> _mockHabits = [
-    HabitModel(
-      id: 'habit_1',
-      title: 'Wake up early',
-      category: 'Health',
-      color: '#20BFAE',
-      targetFrequency: 7,
-      reminderTime: '06:00 AM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_2',
-      title: 'Exercise',
-      category: 'Health',
-      color: '#3AA66F',
-      targetFrequency: 6,
-      reminderTime: '07:00 AM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_3',
-      title: 'Read a book',
-      category: 'Study',
-      color: '#0B2D4D',
-      targetFrequency: 7,
-      reminderTime: '08:30 PM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_4',
-      title: 'Drink water',
-      category: 'Health',
-      color: '#20BFAE',
-      targetFrequency: 7,
-      reminderTime: 'All day',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_5',
-      title: 'Healthy eating',
-      category: 'Health',
-      color: '#3AA66F',
-      targetFrequency: 7,
-      reminderTime: '01:00 PM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_6',
-      title: 'Learn something new',
-      category: 'Study',
-      color: '#0B2D4D',
-      targetFrequency: 5,
-      reminderTime: '05:00 PM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_7',
-      title: 'No social media',
-      category: 'Work',
-      color: '#20BFAE',
-      targetFrequency: 7,
-      reminderTime: '09:00 AM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_8',
-      title: 'Meditate',
-      category: 'Health',
-      color: '#3AA66F',
-      targetFrequency: 7,
-      reminderTime: '07:30 AM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_9',
-      title: 'Plan tomorrow',
-      category: 'Work',
-      color: '#0B2D4D',
-      targetFrequency: 7,
-      reminderTime: '09:30 PM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-    HabitModel(
-      id: 'habit_10',
-      title: 'Be productive',
-      category: 'Work',
-      color: '#20BFAE',
-      targetFrequency: 7,
-      reminderTime: '10:00 AM',
-      createdAt: DateTime.now().subtract(const Duration(days: 30)),
-    ),
-  ];
-
+  // In-memory store initialized empty for fresh user data
+  final List<TaskModel> _mockTasks = [];
+  final List<HabitModel> _mockHabits = [];
   final List<HabitCompletionModel> _mockCompletions = [];
-  final List<GoalModel> _mockGoals = [
-    GoalModel(
-      id: 'goal_1',
-      title: 'Complete 30 Focus Sessions',
-      targetValue: 30,
-      currentValue: 18,
-      unit: 'sessions',
-      period: 'monthly',
-      deadline: 'End of Month',
-      category: 'Work',
-      linkedType: 'tasks',
-      createdAt: DateTime.now().subtract(const Duration(days: 5)),
-    ),
-    GoalModel(
-      id: 'goal_2',
-      title: 'Finish DailyWork Flutter app',
-      targetValue: 10,
-      currentValue: 6,
-      unit: 'modules',
-      period: 'weekly',
-      deadline: 'This Sunday',
-      category: 'Work',
-      linkedType: 'all',
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-    ),
-  ];
+  final List<GoalModel> _mockGoals = [];
 
   final StreamController<List<TaskModel>> _mockTaskStream =
       StreamController<List<TaskModel>>.broadcast();
@@ -261,68 +69,27 @@ class FirestoreService {
           _mockGoals.clear();
           _mockGoals.addAll(savedGoals);
         }
+
+        // Automatic purge of any legacy mock sample items to start clean
+        final hasLegacyMocks = _mockTasks.any((t) => t.id.startsWith('mock_')) ||
+            _mockHabits.any((h) => h.id.startsWith('habit_')) ||
+            _mockGoals.any((g) => g.id.startsWith('goal_'));
+        if (hasLegacyMocks) {
+          clearSampleData();
+          debugPrint('[FirestoreService] Clean slate: Purged all legacy mock data.');
+          return;
+        }
       } else {
-        _initMockCompletions();
-        await _storage.saveTasks(_mockTasks);
-        await _storage.saveHabits(_mockHabits);
-        await _storage.saveCompletions(_mockCompletions);
-        await _storage.saveGoals(_mockGoals);
+        await _storage.saveTasks([]);
+        await _storage.saveHabits([]);
+        await _storage.saveCompletions([]);
+        await _storage.saveGoals([]);
         await _storage.setInitialized(true);
       }
       triggerMockInitialState();
-      debugPrint('[FirestoreService] Local storage loaded: ${_mockTasks.length} tasks, ${_mockHabits.length} habits, ${_mockCompletions.length} completions, ${_mockGoals.length} goals.');
+      debugPrint('[FirestoreService] Clean slate active: ${_mockTasks.length} tasks, ${_mockHabits.length} habits, ${_mockCompletions.length} completions, ${_mockGoals.length} goals.');
     } catch (e) {
       debugPrint('[FirestoreService] _initLocalStorage error: $e');
-    }
-  }
-
-  void _initMockCompletions() {
-    final now = DateTime.now();
-    final year = now.year;
-    final month = now.month;
-
-    // Habit completion probability targets to match reference screenshot:
-    // W: 90%, E: 80%, R: 85%, D: 75%, H: 60%, L: 70%, N: 65%, M: 85%, P: 55%, B: 75%
-    final rates = [0.90, 0.80, 0.85, 0.75, 0.60, 0.70, 0.65, 0.85, 0.55, 0.75];
-
-    // Seed completions for day 1 to 30 of this month
-    for (int day = 1; day <= 30; day++) {
-      final dateStr =
-          '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
-      final completionDate = DateTime(year, month, day, 12);
-
-      for (int hIdx = 0; hIdx < _mockHabits.length; hIdx++) {
-        final habit = _mockHabits[hIdx];
-        final rate = rates[hIdx];
-
-        // Pseudo-random deterministic hash for this habit and day
-        final hash = ((day * 37 + (hIdx + 1) * 73) % 100) / 100.0;
-        final shouldComplete = hash < rate;
-
-        if (shouldComplete) {
-          _mockCompletions.add(HabitCompletionModel(
-            id: '${habit.id}_$dateStr',
-            habitId: habit.id,
-            dateStr: dateStr,
-            completedAt: completionDate,
-          ));
-        }
-      }
-    }
-
-    // Ensure streak is exactly 18 consecutive days up to today
-    for (int i = 0; i < 18; i++) {
-      final streakDay = now.subtract(Duration(days: i));
-      final dateStr = streakDay.toIso8601String().substring(0, 10);
-      // Ensure at least habit_1 is completed on every day in the 18-day streak
-      if (!_mockCompletions.any((c) => c.habitId == 'habit_1' && c.dateStr == dateStr)) {
-        _mockCompletions.add(HabitCompletionModel(
-          id: 'habit_1_$dateStr',
-          habitId: 'habit_1',
-          dateStr: dateStr,
-          completedAt: streakDay,
-        ));
-      }
     }
   }
 
@@ -936,6 +703,10 @@ class FirestoreService {
     _mockGoals.clear();
     _storage.clearAll();
     _storage.setInitialized(true);
+    _storage.saveTasks([]);
+    _storage.saveHabits([]);
+    _storage.saveCompletions([]);
+    _storage.saveGoals([]);
     _mockTaskStream.add([]);
     _mockHabitStream.add([]);
     _mockCompletionStream.add([]);

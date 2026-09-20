@@ -775,34 +775,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 10),
-
-                    // Clear Demo Data Button
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        final firestore = ref.read(firestoreServiceProvider);
-                        firestore.clearSampleData();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Sample demo items cleared. Ready for your own habits and tasks!'),
-                            duration: Duration(seconds: 3),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.refresh_rounded, size: 18, color: AppColors.tealAccent),
-                      label: const Text('Clear Demo Data (Start Fresh)'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    // Destructive Reset Button
+                    // Reset Workspace Button
                     OutlinedButton.icon(
                       onPressed: () => _showResetConfirmDialog(context),
                       icon: const Icon(Icons.delete_forever_rounded, size: 18, color: AppColors.danger),
-                      label: const Text('Reset All Local Data', style: TextStyle(color: AppColors.danger)),
+                      label: const Text('Reset Workspace (Start Fresh)', style: TextStyle(color: AppColors.danger)),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4)),
                         padding: const EdgeInsets.symmetric(vertical: 12),

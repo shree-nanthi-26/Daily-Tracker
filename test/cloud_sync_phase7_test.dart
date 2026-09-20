@@ -11,12 +11,12 @@ void main() {
   });
 
   group('Phase 7 Cloud Sync Preparation & In-Memory State Tests', () {
-    test('FirestoreService initializes in local fallback mode when Firebase uninitialized', () {
+    test('FirestoreService initializes in clean state with empty collections when Firebase uninitialized', () {
       final service = FirestoreService();
       expect(service.isCloudActive, isFalse);
-      expect(service.currentTasks, isNotEmpty);
-      expect(service.currentHabits, isNotEmpty);
-      expect(service.currentGoals, isNotEmpty);
+      expect(service.currentTasks, isEmpty);
+      expect(service.currentHabits, isEmpty);
+      expect(service.currentGoals, isEmpty);
     });
 
     test('prepareSyncPayload exports structured payload with all entities and summary', () {
@@ -30,16 +30,10 @@ void main() {
       expect(payload.containsKey('summary'), isTrue);
 
       final summary = payload['summary'] as Map<String, dynamic>;
-      expect(summary['tasksCount'], service.currentTasks.length);
-      expect(summary['habitsCount'], service.currentHabits.length);
-      expect(summary['goalsCount'], service.currentGoals.length);
-      expect(
-        summary['totalCount'],
-        service.currentTasks.length +
-            service.currentHabits.length +
-            service.currentCompletions.length +
-            service.currentGoals.length,
-      );
+      expect(summary['tasksCount'], 0);
+      expect(summary['habitsCount'], 0);
+      expect(summary['goalsCount'], 0);
+      expect(summary['totalCount'], 0);
     });
 
     test('syncLocalToCloud throws StateError when Cloud Firestore is uninitialized', () async {
