@@ -8,6 +8,8 @@ class GoalModel {
   final String unit;
   final String period; // 'daily' | 'weekly' | 'monthly'
   final String? deadline;
+  final String? category; // 'Work' | 'Health' | 'Personal' | 'Learning' | 'All'
+  final String linkedType; // 'all' | 'tasks' | 'habits' | 'manual'
   final DateTime createdAt;
 
   const GoalModel({
@@ -18,6 +20,8 @@ class GoalModel {
     required this.unit,
     this.period = 'weekly',
     this.deadline,
+    this.category,
+    this.linkedType = 'all',
     required this.createdAt,
   });
 
@@ -27,6 +31,8 @@ class GoalModel {
     return pct > 100 ? 100.0 : (pct < 0 ? 0.0 : pct);
   }
 
+  bool get isAchieved => currentValue >= targetValue && targetValue > 0;
+
   GoalModel copyWith({
     String? id,
     String? title,
@@ -35,6 +41,8 @@ class GoalModel {
     String? unit,
     String? period,
     String? deadline,
+    String? category,
+    String? linkedType,
     DateTime? createdAt,
   }) {
     return GoalModel(
@@ -45,6 +53,8 @@ class GoalModel {
       unit: unit ?? this.unit,
       period: period ?? this.period,
       deadline: deadline ?? this.deadline,
+      category: category ?? this.category,
+      linkedType: linkedType ?? this.linkedType,
       createdAt: createdAt ?? this.createdAt,
     );
   }
@@ -58,6 +68,8 @@ class GoalModel {
       'unit': unit,
       'period': period,
       'deadline': deadline,
+      'category': category,
+      'linked_type': linkedType,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -82,6 +94,8 @@ class GoalModel {
       unit: json['unit'] as String? ?? 'hours',
       period: json['period'] as String? ?? 'weekly',
       deadline: json['deadline'] as String?,
+      category: json['category'] as String?,
+      linkedType: json['linked_type'] as String? ?? 'all',
       createdAt: created,
     );
   }
@@ -99,6 +113,8 @@ class GoalModel {
       'unit': unit,
       'period': period,
       'deadline': deadline,
+      'category': category,
+      'linked_type': linkedType,
       'created_at': Timestamp.fromDate(createdAt),
     };
   }

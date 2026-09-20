@@ -195,6 +195,8 @@ class FirestoreService {
       unit: 'sessions',
       period: 'monthly',
       deadline: 'End of Month',
+      category: 'Work',
+      linkedType: 'tasks',
       createdAt: DateTime.now().subtract(const Duration(days: 5)),
     ),
     GoalModel(
@@ -205,6 +207,8 @@ class FirestoreService {
       unit: 'modules',
       period: 'weekly',
       deadline: 'This Sunday',
+      category: 'Work',
+      linkedType: 'all',
       createdAt: DateTime.now().subtract(const Duration(days: 2)),
     ),
   ];
@@ -316,10 +320,6 @@ class FirestoreService {
 
   // ================= TASKS =================
   Stream<List<TaskModel>> streamTasks(String uid) {
-    if (_db == null) {
-      return _mockTaskStream.stream;
-    }
-
     final controller = StreamController<List<TaskModel>>.broadcast();
     void emitLatest() {
       if (!controller.isClosed) controller.add(List<TaskModel>.from(_mockTasks));
@@ -328,9 +328,7 @@ class FirestoreService {
     emitLatest();
 
     StreamSubscription? firestoreSub;
-    StreamSubscription? mockSub;
-
-    mockSub = _mockTaskStream.stream.listen(
+    final mockSub = _mockTaskStream.stream.listen(
       (data) {
         if (!controller.isClosed) controller.add(data);
       },
@@ -339,36 +337,38 @@ class FirestoreService {
       },
     );
 
-    try {
-      firestoreSub = _db
-          .collection('users')
-          .doc(uid)
-          .collection('tasks')
-          .orderBy('created_at', descending: true)
-          .snapshots()
-          .listen(
-        (snapshot) {
-          final items = snapshot.docs
-              .map((doc) => TaskModel.fromFirestore(doc))
-              .toList();
-          if (items.isNotEmpty) {
-            _mockTasks.clear();
-            _mockTasks.addAll(items);
-            _storage.saveTasks(_mockTasks);
-            if (!controller.isClosed) controller.add(items);
-          }
-        },
-        onError: (error) {
-          debugPrint('[FirestoreService] streamTasks error: $error. Using local state.');
-        },
-      );
-    } catch (e) {
-      debugPrint('[FirestoreService] Could not attach tasks snapshot listener: $e');
+    if (_db != null) {
+      try {
+        firestoreSub = _db
+            .collection('users')
+            .doc(uid)
+            .collection('tasks')
+            .orderBy('created_at', descending: true)
+            .snapshots()
+            .listen(
+          (snapshot) {
+            final items = snapshot.docs
+                .map((doc) => TaskModel.fromFirestore(doc))
+                .toList();
+            if (items.isNotEmpty) {
+              _mockTasks.clear();
+              _mockTasks.addAll(items);
+              _storage.saveTasks(_mockTasks);
+              if (!controller.isClosed) controller.add(items);
+            }
+          },
+          onError: (error) {
+            debugPrint('[FirestoreService] streamTasks error: $error. Using local state.');
+          },
+        );
+      } catch (e) {
+        debugPrint('[FirestoreService] Could not attach tasks snapshot listener: $e');
+      }
     }
 
     controller.onCancel = () {
       firestoreSub?.cancel();
-      mockSub?.cancel();
+      mockSub.cancel();
     };
 
     return controller.stream;
@@ -423,6 +423,15 @@ class FirestoreService {
       completedAt: newDone ? DateTime.now() : null,
     );
     await updateTask(uid, updated);
+
+    // Auto-progress linked goals
+    final delta = newDone ? 1.0 : -1.0;
+    _autoProgressGoals(
+      category: task.category,
+      activityType: 'tasks',
+      delta: delta,
+      uid: uid,
+    );
   }
 
   Future<void> deleteTask(String uid, String taskId) async {
@@ -446,10 +455,6 @@ class FirestoreService {
 
   // ================= HABITS =================
   Stream<List<HabitModel>> streamHabits(String uid) {
-    if (_db == null) {
-      return _mockHabitStream.stream;
-    }
-
     final controller = StreamController<List<HabitModel>>.broadcast();
     void emitLatest() {
       if (!controller.isClosed) controller.add(List<HabitModel>.from(_mockHabits));
@@ -458,9 +463,7 @@ class FirestoreService {
     emitLatest();
 
     StreamSubscription? firestoreSub;
-    StreamSubscription? mockSub;
-
-    mockSub = _mockHabitStream.stream.listen(
+    final mockSub = _mockHabitStream.stream.listen(
       (data) {
         if (!controller.isClosed) controller.add(data);
       },
@@ -469,36 +472,38 @@ class FirestoreService {
       },
     );
 
-    try {
-      firestoreSub = _db
-          .collection('users')
-          .doc(uid)
-          .collection('habits')
-          .orderBy('sort_order')
-          .snapshots()
-          .listen(
-        (snapshot) {
-          final items = snapshot.docs
-              .map((doc) => HabitModel.fromFirestore(doc))
-              .toList();
-          if (items.isNotEmpty) {
-            _mockHabits.clear();
-            _mockHabits.addAll(items);
-            _storage.saveHabits(_mockHabits);
-            if (!controller.isClosed) controller.add(items);
-          }
-        },
-        onError: (error) {
-          debugPrint('[FirestoreService] streamHabits error: $error. Using local state.');
-        },
-      );
-    } catch (e) {
-      debugPrint('[FirestoreService] Could not attach habits snapshot listener: $e');
+    if (_db != null) {
+      try {
+        firestoreSub = _db
+            .collection('users')
+            .doc(uid)
+            .collection('habits')
+            .orderBy('sort_order')
+            .snapshots()
+            .listen(
+          (snapshot) {
+            final items = snapshot.docs
+                .map((doc) => HabitModel.fromFirestore(doc))
+                .toList();
+            if (items.isNotEmpty) {
+              _mockHabits.clear();
+              _mockHabits.addAll(items);
+              _storage.saveHabits(_mockHabits);
+              if (!controller.isClosed) controller.add(items);
+            }
+          },
+          onError: (error) {
+            debugPrint('[FirestoreService] streamHabits error: $error. Using local state.');
+          },
+        );
+      } catch (e) {
+        debugPrint('[FirestoreService] Could not attach habits listener: $e');
+      }
     }
 
     controller.onCancel = () {
       firestoreSub?.cancel();
-      mockSub?.cancel();
+      mockSub.cancel();
     };
 
     return controller.stream;
@@ -647,6 +652,20 @@ class FirestoreService {
     _mockCompletionStream.add(List.from(_mockCompletions));
     debugPrint('[FirestoreService] toggleCompletion optimistic toggle: $habitId (done: ${!isDone})');
 
+    // Auto-progress linked goals if toggling today's habit completion
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    if (dateStr == todayStr) {
+      final habitIdx = _mockHabits.indexWhere((h) => h.id == habitId);
+      final habitCategory = habitIdx != -1 ? _mockHabits[habitIdx].category : null;
+      final delta = isDone ? -1.0 : 1.0;
+      _autoProgressGoals(
+        category: habitCategory,
+        activityType: 'habits',
+        delta: delta,
+        uid: uid,
+      );
+    }
+
     // 3. Sync to Cloud Firestore in background without blocking UI
     if (_db != null) {
       try {
@@ -675,10 +694,6 @@ class FirestoreService {
 
   // ================= GOALS =================
   Stream<List<GoalModel>> streamGoals(String uid) {
-    if (_db == null) {
-      return _mockGoalStream.stream;
-    }
-
     final controller = StreamController<List<GoalModel>>.broadcast();
     void emitLatest() {
       if (!controller.isClosed) {
@@ -689,9 +704,7 @@ class FirestoreService {
     emitLatest();
 
     StreamSubscription? firestoreSub;
-    StreamSubscription? mockSub;
-
-    mockSub = _mockGoalStream.stream.listen(
+    final mockSub = _mockGoalStream.stream.listen(
       (data) {
         if (!controller.isClosed) controller.add(data);
       },
@@ -700,36 +713,38 @@ class FirestoreService {
       },
     );
 
-    try {
-      firestoreSub = _db
-          .collection('users')
-          .doc(uid)
-          .collection('goals')
-          .orderBy('created_at')
-          .snapshots()
-          .listen(
-        (snapshot) {
-          final items = snapshot.docs
-              .map((doc) => GoalModel.fromFirestore(doc))
-              .toList();
-          if (items.isNotEmpty) {
-            _mockGoals.clear();
-            _mockGoals.addAll(items);
-            _storage.saveGoals(_mockGoals);
-            if (!controller.isClosed) controller.add(items);
-          }
-        },
-        onError: (error) {
-          debugPrint('[FirestoreService] streamGoals error: $error. Using local state.');
-        },
-      );
-    } catch (e) {
-      debugPrint('[FirestoreService] Could not attach goals listener: $e');
+    if (_db != null) {
+      try {
+        firestoreSub = _db
+            .collection('users')
+            .doc(uid)
+            .collection('goals')
+            .orderBy('created_at')
+            .snapshots()
+            .listen(
+          (snapshot) {
+            final items = snapshot.docs
+                .map((doc) => GoalModel.fromFirestore(doc))
+                .toList();
+            if (items.isNotEmpty) {
+              _mockGoals.clear();
+              _mockGoals.addAll(items);
+              _storage.saveGoals(_mockGoals);
+              if (!controller.isClosed) controller.add(items);
+            }
+          },
+          onError: (error) {
+            debugPrint('[FirestoreService] streamGoals error: $error. Using local state.');
+          },
+        );
+      } catch (e) {
+        debugPrint('[FirestoreService] Could not attach goals listener: $e');
+      }
     }
 
     controller.onCancel = () {
       firestoreSub?.cancel();
-      mockSub?.cancel();
+      mockSub.cancel();
     };
 
     return controller.stream;
@@ -777,12 +792,17 @@ class FirestoreService {
     }
   }
 
-  Future<void> updateGoalProgress(String uid, String goalId, double delta) async {
+  Future<bool> updateGoalProgress(String uid, String goalId, double delta) async {
+    bool newlyAchieved = false;
     final idx = _mockGoals.indexWhere((g) => g.id == goalId);
     if (idx != -1) {
       final cur = _mockGoals[idx].currentValue;
+      final target = _mockGoals[idx].targetValue;
       final updatedVal = (cur + delta).clamp(0.0, 9999999.0);
       _mockGoals[idx] = _mockGoals[idx].copyWith(currentValue: updatedVal);
+      if (cur < target && updatedVal >= target && target > 0) {
+        newlyAchieved = true;
+      }
       _storage.saveGoals(_mockGoals);
       _mockGoalStream.add(List.from(_mockGoals));
     }
@@ -800,6 +820,76 @@ class FirestoreService {
       } catch (e) {
         debugPrint('[FirestoreService] updateGoalProgress Firestore error: $e');
       }
+    }
+    return newlyAchieved;
+  }
+
+  Future<bool> setGoalProgress(String uid, String goalId, double exactValue) async {
+    bool newlyAchieved = false;
+    final idx = _mockGoals.indexWhere((g) => g.id == goalId);
+    if (idx != -1) {
+      final cur = _mockGoals[idx].currentValue;
+      final target = _mockGoals[idx].targetValue;
+      final updatedVal = exactValue.clamp(0.0, 9999999.0);
+      _mockGoals[idx] = _mockGoals[idx].copyWith(currentValue: updatedVal);
+      if (cur < target && updatedVal >= target && target > 0) {
+        newlyAchieved = true;
+      }
+      _storage.saveGoals(_mockGoals);
+      _mockGoalStream.add(List.from(_mockGoals));
+    }
+
+    if (_db != null) {
+      try {
+        final docRef = _db
+            .collection('users')
+            .doc(uid)
+            .collection('goals')
+            .doc(goalId);
+        await docRef.update({
+          'current_value': exactValue,
+        });
+      } catch (e) {
+        debugPrint('[FirestoreService] setGoalProgress Firestore error: $e');
+      }
+    }
+    return newlyAchieved;
+  }
+
+  void _autoProgressGoals({
+    required String? category,
+    required String activityType,
+    required double delta,
+    required String uid,
+  }) {
+    bool anyChanged = false;
+    for (int i = 0; i < _mockGoals.length; i++) {
+      final goal = _mockGoals[i];
+      if (goal.linkedType == 'manual') continue;
+
+      final matchesType = goal.linkedType == 'all' || goal.linkedType == activityType;
+      final matchesCategory = goal.category == null ||
+          goal.category == 'All' ||
+          (category != null &&
+              goal.category?.trim().toLowerCase() == category.trim().toLowerCase());
+
+      if (matchesType && matchesCategory) {
+        final newVal = (goal.currentValue + delta).clamp(0.0, 9999999.0);
+        _mockGoals[i] = goal.copyWith(currentValue: newVal);
+        anyChanged = true;
+
+        if (_db != null) {
+          try {
+            _db.collection('users').doc(uid).collection('goals').doc(goal.id).update({
+              'current_value': FieldValue.increment(delta),
+            }).catchError((_) {});
+          } catch (_) {}
+        }
+      }
+    }
+    if (anyChanged) {
+      _storage.saveGoals(_mockGoals);
+      _mockGoalStream.add(List.from(_mockGoals));
     }
   }
 
