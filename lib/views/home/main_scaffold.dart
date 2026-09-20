@@ -36,11 +36,11 @@ class _MainScaffoldState extends State<MainScaffold> {
   @override
   Widget build(BuildContext context) {
     final screens = [
-      DashboardScreen(onNavigateTab: _onTabSelect),
-      const TasksScreen(),
-      const HabitsScreen(),
-      const GoalsScreen(),
-      const SettingsScreen(),
+      DashboardScreen(key: const PageStorageKey('tab_dashboard'), onNavigateTab: _onTabSelect),
+      const TasksScreen(key: PageStorageKey('tab_tasks')),
+      const HabitsScreen(key: PageStorageKey('tab_habits')),
+      const GoalsScreen(key: PageStorageKey('tab_goals')),
+      const SettingsScreen(key: PageStorageKey('tab_settings')),
     ];
 
     return LayoutBuilder(

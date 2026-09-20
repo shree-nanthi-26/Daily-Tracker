@@ -699,28 +699,40 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 10),
 
                     // Haptic Feedback Switch
-                    SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: const Icon(Icons.vibration_rounded, color: AppColors.tealAccent, size: 20),
-                      title: const Text(
-                        'Tactile Haptic Feedback',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
+                    Row(
+                      children: [
+                        const Icon(Icons.vibration_rounded, color: AppColors.tealAccent, size: 20),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tactile Haptic Feedback',
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Vibrate on completing habits, checking tasks, and goal celebrations',
+                                style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      subtitle: const Text(
-                        'Vibrate on completing habits, checking tasks, and goal celebrations',
-                        style: TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
-                      ),
-                      value: hapticsEnabled,
-                      activeTrackColor: AppColors.tealAccent.withValues(alpha: 0.4),
-                      activeThumbColor: AppColors.tealAccent,
-                      onChanged: (val) {
-                        if (val) HapticFeedback.mediumImpact();
-                        ref.read(hapticsEnabledProvider.notifier).setEnabled(val);
-                      },
+                        Switch(
+                          value: hapticsEnabled,
+                          activeTrackColor: AppColors.tealAccent.withValues(alpha: 0.4),
+                          activeThumbColor: AppColors.tealAccent,
+                          onChanged: (val) {
+                            if (val) HapticFeedback.mediumImpact();
+                            ref.read(hapticsEnabledProvider.notifier).setEnabled(val);
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -873,71 +885,75 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         break;
     }
 
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        ref.read(themeModePreferenceProvider.notifier).setThemeMode(mode);
-      },
+    return Material(
+      color: Colors.transparent,
       borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.tealAccent.withValues(alpha: 0.08) : AppColors.bgCard,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? AppColors.tealAccent : AppColors.borderCard,
-            width: isSelected ? 2 : 1,
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          ref.read(themeModePreferenceProvider.notifier).setThemeMode(mode);
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Ink(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.tealAccent.withValues(alpha: 0.08) : AppColors.bgCard,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? AppColors.tealAccent : AppColors.borderCard,
+              width: isSelected ? 2 : 1,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Swatch preview box
-                Container(
-                  width: 32,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: previewBg,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: previewAccent,
-                        shape: BoxShape.circle,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Swatch preview box
+                  Container(
+                    width: 32,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: previewBg,
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: Center(
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: previewAccent,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                if (isSelected)
-                  const Icon(Icons.check_circle_rounded, color: AppColors.tealAccent, size: 18)
-                else
-                  const Icon(Icons.radio_button_unchecked_rounded, color: AppColors.textMuted, size: 18),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              mode.label,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                color: isSelected ? AppColors.navyPrimary : AppColors.textPrimary,
+                  if (isSelected)
+                    const Icon(Icons.check_circle_rounded, color: AppColors.tealAccent, size: 18)
+                  else
+                    const Icon(Icons.radio_button_unchecked_rounded, color: AppColors.textMuted, size: 18),
+                ],
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              mode.description,
-              style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                mode.label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected ? AppColors.navyPrimary : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                mode.description,
+                style: const TextStyle(fontSize: 10, color: AppColors.textSecondary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -976,48 +992,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     required IconData icon,
     required Widget child,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.bgCard,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderCard, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
+    return Material(
+      color: AppColors.bgCard,
+      borderRadius: BorderRadius.circular(8),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            color: AppColors.navyHeader,
-            child: Row(
-              children: [
-                Icon(icon, size: 16, color: AppColors.tealAccent),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.textOnNavy,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.borderCard, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: child,
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              color: AppColors.navyHeader,
+              child: Row(
+                children: [
+                  Icon(icon, size: 16, color: AppColors.tealAccent),
+                  const SizedBox(width: 8),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.textOnNavy,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: child,
+            ),
+          ],
+        ),
       ),
     );
   }
