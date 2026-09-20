@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "823530124913",
+    "project_id": "daily-work-tracker-e5831",
+    "storage_bucket": "daily-work-tracker-e5831.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:823530124913:android:dcefecb5d1eb86a9778dd0",
+        "android_client_info": {
+          "package_name": "com.example.daily_work_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxPK_3bWkrZJk7wffAqctaalfGaObrK8Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
